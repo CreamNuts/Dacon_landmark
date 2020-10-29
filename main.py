@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 import torchvision
 import torchvision.transforms as transforms
 from dataset import Dacon
@@ -36,9 +36,9 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('use: ',device)
 ################################################
 train_acc_list = []
-test_acc_list = []
+valid_acc_list = []
 train_loss_list = []
-test_loss_list = []
+valid_loss_list = []
 
 calculation = transforms.Compose([
     transforms.ToTensor()
@@ -81,10 +81,20 @@ def train(train_loader, model, criterion, optimizer, epoch, lr_scheduler):
         train_acc += (output.argmax(1)==labels).float().mean()
         pbar.set_description("Loss : %.3f" % loss)
     return loss
-def inference():
-    pass
+
+def inference(valid_loader, model, criterion):
+    model.eval()
+    for images, labels in valid_loader:
+        with torch.no_grad():
+            output = model(images.to(device))
+            loss = criterion(output, labels)
+            valid_acc += (output.argmax(1)==labels).float().mean()
+    return loss
 
 def generate_submission():
+    pass
+
+def visualize():
     pass
 
 if __name__ == '__main__':
@@ -95,7 +105,10 @@ if __name__ == '__main__':
         transforms.Normalize(*PARAMETERS)
     ])
     dacon = Dacon(dir=DIR, mode='train', transform=transforms_train)
-    trainloader = DataLoader(dacon, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
+    lengths = [int(len(dacon)*0.8), len(dacon)-int(len(dacon)*0.8)]
+    train, valid = random.split(dacon, lengths)
+    trainloader = DataLoader(train, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
+    validloader = DataLoader(valid, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
     model = torchvision.models.resnet50(pretrained=True)
     model.avg_pool = nn.AdaptiveAvgPool2d(1)
     model.fc = nn.Linear(model.fc.in_features, NUM_CLASSES)
@@ -106,10 +119,12 @@ if __name__ == '__main__':
 
     for epoch in pbar:
         train_acc = 0
-        test_acc = 0
-        train_loss = train(trainloader, model. criterion, optimizer, epoch, lr_scheduler)
+        valid_acc = 0
+        train_loss = train(trainloader, model, criterion, optimizer, epoch, lr_scheduler)
         lr_scheduler.step()
         train_acc_list.append(train_acc/len(trainloader))
         train_loss_list.append(train_loss.detach.cpu().numpy())
 
-        test_loss = inference()
+        valid_loss = inference(validloader, model, criterion, optimizer, epoch, lr_scheduler)
+        valid_acc_list.append(valid_acc/len(validloader))
+        valid_loss_list.append(valid_loss.detach.cpu().numpy())
