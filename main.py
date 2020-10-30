@@ -74,7 +74,6 @@ def get_parameters(dataset):
     count = 0
     if args.mode == 'train':
         for images, _ in tqdm(dataloader):
-            import pdb; pdb.set_trace()
             for i in range(3):
                 var = images[:,:,:,i].view(-1)
                 PARAMETERS['mean'][i] += var.mean()
