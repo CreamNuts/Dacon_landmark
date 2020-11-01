@@ -183,4 +183,15 @@ if __name__ == '__main__':
         valid_acc, valid_loss = inference(validloader, model, criterion, optimizer, epoch, lr_scheduler)
         valid_acc_list.append(valid_acc/len(validloader))
         valid_loss_list.append(valid_loss.detach.cpu().numpy())
+        
+        torch.save({
+        'epoch': epoch+1,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'train_loss' : train_loss_list,
+        'val_loss': val_loss_list, 
+        'train_accuracy': train_accuracy_list,
+        'val_accuracy' : val_accuracy_list
+    }, './checkpoint.pt')
+        
     '''
