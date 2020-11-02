@@ -25,6 +25,7 @@ class Dacon(Dataset):
                 fullpath = os.path.join(os.getcwd(),'..', 'data', 'test', filename[0], filename)
                 self.image_paths.append(fullpath)
         self.transform = transform
+        print(len(self.image_paths))
     
     def __len__(self):
         return len(self.image_paths)
