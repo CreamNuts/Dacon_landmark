@@ -19,9 +19,9 @@ from efficientnet_pytorch import EfficientNet
 
 #########setting hyperparameters in here########
 parser = argparse.ArgumentParser()
-parser.add_argument('-m', '--mode', default='train')
+parser.add_argument('--mode', '-m', default='train', choices=['train', 'test'])
 parser.add_argument('--calculator', default='False')
-parser.add_argument('-c', '--checkpoint', default=None)
+parser.add_argument('--checkpoint', '-c', default=None, help='Checkpoint Directory')
 parser.add_argument('--gpu', default='0')
 args = parser.parse_args()
 
