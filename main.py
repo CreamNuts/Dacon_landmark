@@ -13,23 +13,24 @@ from torch.utils.tensorboard import SummaryWriter
 import torchvision
 import torchvision.transforms as transforms
 from dataset import Dacon
+from model import ResNet18, ResNet34
 
 
 #########setting hyperparameters in here########
 parser = argparse.ArgumentParser()
 parser.add_argument('--mode', default='train')
-parser.add_argument('--calculator',default='False')
+parser.add_argument('--calculator', default='False')
+parser.add_argument('--checkpoint', default=None)
 args = parser.parse_args()
 
-DIR = '/home/ubuntu/jiuk/data/' #nipa server dir
-lab_dir = '/home/jiuk/data/'
-pbar = trange(30, desc='Loss : 0', leave=True, position=0)
-BATCH_SIZE = 128
+DIR = os.path.join(os.getcwd(),'..', 'data') + '/'
+BATCH_SIZE = 256
 LEARNING_RATE = 1e-3
 LR_STEP = 3
 LR_FACTOR = 0.5
 NUM_CLASSES = 1049
 NUM_WORKERS = multiprocessing.cpu_count() #24
+TRAINING_EPOCH = 5
 
 torch.manual_seed(777)
 torch.cuda.manual_seed(777)
@@ -55,15 +56,10 @@ TEST_PARAMETERS = {
     'std':[0.2757, 0.2769, 0.2763]
 
 }
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('use: ',device)
 ################################################
-train_acc_list = []
-valid_acc_list = []
-train_loss_list = []
-valid_loss_list = []
-
 calculation = transforms.Compose([
     transforms.ToTensor()
 ])
@@ -83,12 +79,8 @@ def get_parameters(dataset):
                 PARAMETERS['std'][i] += var.std()
             count += 1
     else:
-        for images in tqdm(dataloader):
-            for i in range(3):
-                var = images[:,:,:,i].view(-1)
-                PARAMETERS['mean'][i] += var.mean()
-                PARAMETERS['std'][i] += var.std()
-            count += 1
+        print('In Test, Use Train mean and std')
+        return None
 
     for i in range(3):
         PARAMETERS['mean'][i] /= count
@@ -98,32 +90,59 @@ def get_parameters(dataset):
     print(PARAMETERS)
     return PARAMETERS
 
-def train(train_loader, model, criterion, optimizer, epoch, lr_scheduler):
-    print(f'epoch: {epoch}')
+def train(train_loader, model, criterion, optimizer, lr_scheduler):
     model.train()
-    train_acc = 0
+    acc = 0
     for images, labels in train_loader:
         optimizer.zero_grad()
         output = model(images.to(device))
         loss = criterion(output, labels.to(device))
         loss.backward()
         optimizer.step()
-        train_acc += (output.argmax(1)==labels.to(device)).float().mean()
+        acc += (output.argmax(1)==labels.to(device)).float().mean()
         pbar.set_description("Loss : %.3f" % loss)
-    return train_acc, loss
+    return acc, loss
 
-def inference(valid_loader, model, criterion):
+def validation(valid_loader, model, criterion):
     model.eval()
-    valid_acc = 0
+    acc = 0
     for images, labels in valid_loader:
         with torch.no_grad():
             output = model(images.to(device))
             loss = criterion(output, labels.to(device))
-            valid_acc += (output.argmax(1)==labels.to(device)).float().mean()
-    return valid_acc, loss
+            acc += (output.argmax(1)==labels.to(device)).float().mean()
+    return acc, loss
 
-def generate_submission():
-    pass
+def submission(test_loader, model):
+    model.eval()
+    landmark_id = []
+    conf = []
+    for img in tqdm(testloader):
+        img = img.to(device)
+        pred = model(img)
+        pred = nn.Softmax(dim=1)(pred)
+        landmark_id.append(torch.argmax(pred, dim=1))
+        conf.append(torch.max(pred, dim=1)[0])
+    submission = test_loader.dataset.submission
+    submission.landmark_id = torch.cat(landmark_id).detach().cpu().numpy()
+    submission.conf = torch.cat(conf).detach().cpu().numpy()
+    submission.to_csv(os.path.join(os.getcwd(), 'submission.csv'), index=False)
+
+
+def save(model, epoch, optimizer, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list):
+    if args.checkpoint is not None:
+        check_epoch = torch.load(args.checkpoint)['epoch']
+        epoch += check_epoch
+
+    torch.save({
+            'epoch': epoch+1,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'train_loss' : train_loss_list,
+            'val_loss': valid_loss_list, 
+            'train_accuracy': train_acc_list,
+            'val_accuracy' : valid_acc_list
+        }, './checkpoint.pt')
 
 def visualize():
     fig, ax = plt.subplots(1, 2, figsize=(20, 10))
@@ -175,34 +194,55 @@ if __name__ == '__main__':
     visualize(img_grid)
     writer.add_image('dacon_image', img_grid)
     '''
-
-    
-    dacon = Dacon(dir=DIR, mode=args.mode, transform=transforms_train)
-    num_train = int(len(dacon) * 0.8)
-    num_valid = len(dacon) - num_train
-    trainset, validset = random_split(dacon, [num_train, num_valid])
-    
-    trainloader = DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
-    validloader = DataLoader(validset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
-
+    #model = ResNet34()
     model = torchvision.models.resnet18(pretrained=True)
     for param in model.parameters():
         param.requires_grad = False
-    #model.avg_pool = nn.AdaptiveAvgPool2d(1)
     model.fc = nn.Linear(model.fc.in_features, NUM_CLASSES)
+    if args.checkpoint is None:   
+        #model.avg_pool = nn.AdaptiveAvgPool2d(1)        
+        check_epoch = 0
+        train_acc_list = []
+        valid_acc_list = []
+        train_loss_list = []
+        valid_loss_list = []
+    else:
+        checkpoint = torch.load(args.checkpoint)
+        check_epoch = checkpoint['epoch']
+        model.load_state_dict(checkpoint['model_state_dict'])
+        train_acc_list = checkpoint['train_accuracy']
+        valid_acc_list = checkpoint['val_accuracy']
+        train_loss_list = checkpoint['train_loss']
+        valid_loss_list = checkpoint['val_loss']
     model.to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=LR_STEP, gamma=LR_FACTOR)
 
-    for epoch in pbar:
-        train_acc, train_loss = train(trainloader, model, criterion, optimizer, epoch, lr_scheduler)
-        lr_scheduler.step()
-        train_acc_list.append(train_acc/len(trainloader))
-        train_loss_list.append(train_loss.detach.cpu().numpy())
+    if args.mode == 'train':
+        dacon = Dacon(dir=DIR, mode=args.mode, transform=transforms_train)
+        num_train = int(len(dacon) * 0.05)
+        num_valid = len(dacon) - num_train
+        trainset, validset = random_split(dacon, [num_train, num_valid])
+        
+        trainloader = DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
+        validloader = DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
+        
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=LR_STEP, gamma=LR_FACTOR)
+        with trange(TRAINING_EPOCH, initial=check_epoch, desc='Loss : 0', leave=True) as pbar:
+            for epoch in pbar:
+                train_acc, train_loss = train(trainloader, model, criterion, optimizer, lr_scheduler)
+                lr_scheduler.step()
+                train_acc_list.append(train_acc/len(trainloader))
+                train_loss_list.append(train_loss.detach().cpu().numpy())
 
-        valid_acc, valid_loss = inference(validloader, model, criterion, optimizer, epoch, lr_scheduler)
-        valid_acc_list.append(valid_acc/len(validloader))
-        valid_loss_list.append(valid_loss.detach.cpu().numpy())
+                valid_acc, valid_loss = validation(validloader, model, criterion)
+                valid_acc_list.append(valid_acc/len(validloader))
+                valid_loss_list.append(valid_loss.detach().cpu().numpy())
+                if valid_acc_list[-1].item() == max(valid_acc_list).item():
+                    save(model, epoch, optimizer, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list)
+        #visualize()
 
-    visualize()
+    elif args.mode == 'test':
+        testset = Dacon(dir=DIR, mode=args.mode, transform=transforms_train)
+        testloader = DataLoader(testset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
+        submission(testloader, model)

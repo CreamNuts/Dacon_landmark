@@ -19,13 +19,13 @@ class Dacon(Dataset):
         if mode == 'train':
             self.image_paths = sorted(list(Path(dir+mode).rglob('*.JPG')))
         else:
-            sub = pd.read_csv(dir+'/sample_submission.csv')
-            for i in sub['id']:
+            self.submission = pd.read_csv(dir+'sample_submission.csv')
+            for i in self.submission['id']:
                 filename = i+'.JPG'
                 fullpath = os.path.join(os.getcwd(),'..', 'data', 'test', filename[0], filename)
                 self.image_paths.append(fullpath)
         self.transform = transform
-        print(len(self.image_paths))
+        print(f'Number of Image is {len(self.image_paths)}')
     
     def __len__(self):
         return len(self.image_paths)
