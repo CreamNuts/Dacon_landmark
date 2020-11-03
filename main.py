@@ -19,9 +19,10 @@ from efficientnet_pytorch import EfficientNet
 
 #########setting hyperparameters in here########
 parser = argparse.ArgumentParser()
-parser.add_argument('--mode', default='train')
+parser.add_argument('-m', '--mode', default='train')
 parser.add_argument('--calculator', default='False')
-parser.add_argument('--checkpoint', default=None)
+parser.add_argument('-c', '--checkpoint', default=None)
+parser.add_argument('--gpu', default='0')
 args = parser.parse_args()
 
 DIR = os.path.join(os.getcwd(),'..', 'data') + '/'
@@ -41,7 +42,7 @@ torch.backends.cudnn.benchmark = False
 np.random.seed(777)
 random.seed(777)
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('use: ',device)
 
