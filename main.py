@@ -32,7 +32,7 @@ LR_STEP = 3
 LR_FACTOR = 0.5
 NUM_CLASSES = 1049
 NUM_WORKERS = multiprocessing.cpu_count() #24
-FLOODING_LEVEL = 0.05
+FLOODING_LEVEL = 0.01
 TRAINING_EPOCH = 50
 
 torch.manual_seed(777)
@@ -61,7 +61,6 @@ TRAIN_PARAMETERS = {
 TEST_PARAMETERS = {
     'mean':[0.4456, 0.4462, 0.4468],
     'std':[0.2757, 0.2769, 0.2763]
-
 }
 
 ################################################
@@ -135,9 +134,8 @@ def submission(test_loader, model):
     submission.to_csv(os.path.join(os.getcwd(), 'submission.csv'), index=False)
 
 
-def save(model, epoch, optimizer, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list):
+def save(model, epoch, check_epoch, optimizer, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list):
     if args.checkpoint is not None:
-        check_epoch = torch.load(args.checkpoint)['epoch']
         epoch += check_epoch
 
     torch.save({
@@ -148,7 +146,7 @@ def save(model, epoch, optimizer, train_loss_list, valid_loss_list, train_acc_li
             'val_loss': valid_loss_list, 
             'train_accuracy': train_acc_list,
             'val_accuracy' : valid_acc_list
-        }, './Lab_checkpoint.pt')
+        }, './Lab0.01_checkpoint.pt')
 
 def visualize():
     fig, ax = plt.subplots(1, 2, figsize=(20, 10))
@@ -244,8 +242,8 @@ if __name__ == '__main__':
                 valid_acc, valid_loss = validation(validloader, model, criterion)
                 valid_acc_list.append(valid_acc/len(validloader))
                 valid_loss_list.append(valid_loss.detach().cpu().numpy())
-                if valid_loss_list[-1].item() == min(valid_loss_list).item() or epoch == TRAINING_EPOCH:
-                    save(model, epoch, optimizer, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list)
+                if (valid_loss_list[-1].item() == min(valid_loss_list).item()) or (epoch == TRAINING_EPOCH - check_epoch - 1):
+                    save(model, epoch, check_epoch, optimizer, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list)
         #visualize()
 
     elif args.mode == 'test':
