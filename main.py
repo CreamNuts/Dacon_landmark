@@ -98,7 +98,7 @@ def get_parameters(dataset):
     print(PARAMETERS)
     return PARAMETERS
 
-def train(train_loader, model, criterion, optimizer, epoch, lr_scheduler):
+def train(train_loader, model, criterion, optimizer, epoch):
     print(f'epoch: {epoch}')
     model.train()
     train_acc = 0
@@ -146,7 +146,7 @@ def visualize():
     ax[1].set_ylim(top=1.5)
     print("Train 정확도 : %f, Train Loss : %f\n Valid 정확도 : %f, Valid Loss : %f " %(train_acc_list[-1], train_loss_list[-1], valid_acc_list[-1], valid_loss_list[-1]))
     print("가장 높은 Valid 정확도 : %f" %max(valid_acc_list))
-    plt.show()
+    plt.savefig('score.png')
 
 if __name__ == '__main__':
     #cal_dataset = Dacon(dir=lab_dir, mode=args.mode, transform=calculation)
@@ -196,13 +196,13 @@ if __name__ == '__main__':
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=LR_STEP, gamma=LR_FACTOR)
 
     for epoch in pbar:
-        train_acc, train_loss = train(trainloader, model, criterion, optimizer, epoch, lr_scheduler)
+        train_acc, train_loss = train(trainloader, model, criterion, optimizer, epoch)
         lr_scheduler.step()
         train_acc_list.append(train_acc/len(trainloader))
-        train_loss_list.append(train_loss.detach.cpu().numpy())
+        train_loss_list.append(train_loss.detach().cpu().numpy())
 
-        valid_acc, valid_loss = inference(validloader, model, criterion, optimizer, epoch, lr_scheduler)
+        valid_acc, valid_loss = inference(validloader, model, criterion)
         valid_acc_list.append(valid_acc/len(validloader))
-        valid_loss_list.append(valid_loss.detach.cpu().numpy())
+        valid_loss_list.append(valid_loss.detach().cpu().numpy())
 
     visualize()
