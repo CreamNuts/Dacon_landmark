@@ -15,6 +15,7 @@ import torchvision.transforms as transforms
 from dataset import Dacon
 from model import ResNet18, ResNet34
 from efficientnet_pytorch import EfficientNet
+
 from cutmix.cutmix import CutMix
 from cutmix.utils import CutMixCrossEntropyLoss
 
@@ -108,6 +109,7 @@ def train(train_loader, model, criterion, optimizer, lr_scheduler):
         loss = (loss-args.flooding).abs()+args.flooding
         loss.backward()
         optimizer.step()
+        #acc += (output.max(1)==labels.to(device)).float().mean()
         acc += (output.softmax(dim=1)*labels.to(device)).sum(dim=1).float().mean()
         pbar.set_description("Loss : %.3f" % loss)
     return acc, loss
@@ -225,6 +227,7 @@ if __name__ == '__main__':
         valid_acc_list = checkpoint['val_accuracy']
         train_loss_list = checkpoint['train_loss']
         valid_loss_list = checkpoint['val_loss']
+        
     model.to(device)
 
     if args.mode == 'train':
@@ -232,10 +235,12 @@ if __name__ == '__main__':
         num_train = int(len(dacon) * 0.8)
         num_valid = len(dacon) - num_train
         trainset, validset = random_split(dacon, [num_train, num_valid])
+        trainset = CutMix(trainset, num_class=NUM_CLASSES, num_mix=2, prob=0.5, beta=1)
         trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, num_workers=NUM_WORKERS)
         validloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, num_workers=NUM_WORKERS)
         
-        criterion = nn.CrossEntropyLoss()
+        criterion = CutMixCrossEntropyLoss(True)
+        #criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=LR_STEP, gamma=LR_FACTOR)
         with trange(args.epoch, initial=check_epoch, desc='Loss : 0', leave=True) as pbar:
