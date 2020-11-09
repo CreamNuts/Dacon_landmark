@@ -84,6 +84,7 @@ def train(train_loader, model, criterion, optimizer, lr_scheduler):
         else:
             acc += (output.argmax(1)==labels.to(device)).float().mean()
         pbar.set_description("Loss : %.3f" % loss)
+    print(get_learing_rate(optimizer))
     return acc, loss
 
 def validation(valid_loader, model, criterion):
@@ -110,7 +111,6 @@ def submission(test_loader, model):
     submission.landmark_id = torch.cat(landmark_id).numpy()
     submission.conf = torch.cat(conf).numpy()
     submission.to_csv(os.path.join(os.getcwd(), 'submission.csv'), index=False)
-
 
 if __name__ == '__main__':
     if args.calculator is True:
@@ -167,8 +167,8 @@ if __name__ == '__main__':
     else:
         criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=LR_STEP, gamma=LR_FACTOR)
-
+    #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=LR_STEP, gamma=LR_FACTOR)
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=LR_STEP, T_mult=LR_STEP)
     if args.mode == 'train':
         trainset = Dacon(dir=DIR, mode=args.mode, transform=transforms_train)
         if args.cutmix is True:

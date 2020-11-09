@@ -115,3 +115,8 @@ def get_parameters(dataset, args):
     print('Calculation Completed')
     print(PARAMETERS)
     return PARAMETERS
+
+def get_learing_rate(optimizer):
+    for param_group in optimizer.param_groups:
+        lr = param_group['lr']
+    return lr
