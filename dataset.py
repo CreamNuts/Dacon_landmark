@@ -13,11 +13,11 @@ from torch.utils.data import Dataset
 class Dacon(Dataset):
     def __init__(self, dir, mode, transform=None):
         print(f'creating data loader - {mode}')
-        assert mode in ['train', 'test']
+        assert mode in ['train', 'val', 'test']
         self.mode = mode
         self.image_paths = []
-        if mode == 'train':
-            self.image_paths = sorted(list(Path(dir+mode).rglob('*.JPG')))
+        if mode in ['train', 'val']:
+            self.image_paths = sorted(list(Path(dir+'train').rglob('*.JPG')))
         else:
             self.submission = pd.read_csv(dir+'sample_submission.csv')
             for i in self.submission['id']:
@@ -36,7 +36,7 @@ class Dacon(Dataset):
         if self.transform is not None:
             image = self.transform(image)
         
-        if self.mode == 'train':
+        if self.mode in ['train', 'val']:
             label = int(image_path.parents[0].name)
             return image, label
         else:
