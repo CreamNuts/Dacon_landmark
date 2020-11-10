@@ -24,11 +24,12 @@ parser.add_argument('--mode', '-m', default='val', choices=['train', 'val', 'tes
 parser.add_argument('--calculator', default='False', help='Cacluate Dataset Mean and Std')
 parser.add_argument('--checkpoint', '-c', default=None, help='Checkpoint Directory')
 parser.add_argument('--save', '-s', default='./Checkpoint.pt', help='Save Directory. if Checkpoint exists, Save Checkpoint in Checkpoint Dir')
-parser.add_argument('--model', default='b0', choices=['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'l2', 'vit'])
+parser.add_argument('--model', default='b0', choices=['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'l2', 'vit_base', 'vit_base_hybrid', 'vit_large'])
 parser.add_argument('--gpu', default='0')
 parser.add_argument('--cutmix', default=True, help="If True, Use Cutmix Aug in Training")
+parser.add_argument('--scheduler', default='StepLR', choices=['StepLR', 'Cos'])
 parser.add_argument('--batchsize', type=int, default=128)
-parser.add_argument('--lr', type=float, default=1e-4)
+parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--epoch', type=int, default=50)
 parser.add_argument('--flooding', type=float, default=0.01)
 args = parser.parse_args()
@@ -84,7 +85,6 @@ def train(train_loader, model, criterion, optimizer, lr_scheduler):
         else:
             acc += (output.argmax(1)==labels.to(device)).float().mean()
         pbar.set_description("Loss : %.3f" % loss)
-    print(get_learing_rate(optimizer))
     return acc, loss
 
 def validation(valid_loader, model, criterion):
@@ -141,8 +141,12 @@ if __name__ == '__main__':
     visualize(img_grid)
     writer.add_image('dacon_image', img_grid)
     '''
-    if args.model == 'vit':
-        model = timm.create_model(f'{args.model}_large_patch16_224', pretrained=True, num_classes=NUM_CLASSES)
+    if args.model == 'vit_base':
+        model = timm.create_model('vit_base_patch16_224', pretrained=True, num_classes=NUM_CLASSES)
+    elif args.model == 'vit_base_hybrid':
+        model = timm.create_model('vit_base_resnet26d_224', pretrained=True, num_classes=NUM_CLASSES)
+    elif args.model == 'vit_large':
+        model = timm.create_model('vit_large_patch16_224', pretrained=True, num_classes=NUM_CLASSES)
     else:
         model = EfficientNet.from_pretrained(f"efficientnet-{args.model}", num_classes=NUM_CLASSES)        
     
@@ -167,8 +171,10 @@ if __name__ == '__main__':
     else:
         criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    #lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=LR_STEP, gamma=LR_FACTOR)
-    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=LR_STEP, T_mult=LR_STEP)
+    if args.scheduler == 'StepLR':
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=LR_STEP, gamma=LR_FACTOR)
+    elif args.scheduler == 'Cos':
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=3)
     if args.mode == 'train':
         trainset = Dacon(dir=DIR, mode=args.mode, transform=transforms_train)
         if args.cutmix is True:

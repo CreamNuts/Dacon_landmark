@@ -14,7 +14,7 @@ def save(model, epoch, check_epoch, optimizer, train_loss_list, valid_loss_list,
                 'val_loss': valid_loss_list, 
                 'train_accuracy': train_acc_list,
                 'val_accuracy' : valid_acc_list,
-                'learning_rate' : args.lr,
+                'learning_rate' : get_learing_rate(optimizer),
                 'batch_size' : args.batchsize,
                 'flooding_level' : args.flooding
             }, args.save)
@@ -28,7 +28,7 @@ def save(model, epoch, check_epoch, optimizer, train_loss_list, valid_loss_list,
                 'val_loss': valid_loss_list, 
                 'train_accuracy': train_acc_list,
                 'val_accuracy' : valid_acc_list,
-                'learning_rate' : args.lr,
+                'learning_rate' : get_learing_rate(optimizer),
                 'batch_size' : args.batchsize,
                 'flooding_level' : args.flooding
             }, args.checkpoint)
@@ -48,18 +48,18 @@ def visualize(checkpoint_dir, args):
         ax[0].set_xlabel("Epoch")
         ax[0].plot(range(1, len(train_acc_list)+1), train_acc_list)
         ax[0].legend(['Train'])
-        ax[0].set_xlim(left=15)
+        #ax[0].set_xlim(left=15)
 
         ax[1].set_title("Training Loss")
         ax[1].set_ylabel("Loss")
         ax[1].set_xlabel("Epoch")
         ax[1].plot(range(1, len(train_loss_list)+1), train_loss_list)
         ax[1].legend(['Train'])
-        ax[1].set_xlim(left=15)
-        ax[1].set_ylim(top=1.5)
+        #ax[1].set_xlim(left=15)
+        #ax[1].set_ylim(top=1.5)
         print(f"LR : {learning_rate}, Batch Size : {batch_size}, 현재 Epoch : {checkpoint['epoch']}")
         print(f"Train 정확도 : {train_acc_list[-1]}, Train Loss : {train_loss_list[-1]}")
-        plt.savefig(f'{args.model}_train_fig.png')
+        plt.savefig(f'{args.model}_{args.scheduler}_train_fig.png')
 
     elif args.mode == 'val':
         fig, ax = plt.subplots(1, 2, figsize=(20, 10))
@@ -69,7 +69,7 @@ def visualize(checkpoint_dir, args):
         ax[0].plot(range(1, len(train_acc_list)+1), train_acc_list)
         ax[0].plot(range(1, len(val_acc_list)+1), val_acc_list)
         ax[0].legend(['Train', 'Valid'])
-        ax[0].set_xlim(left=15)
+        #ax[0].set_xlim(left=15)
 
         ax[1].set_title("Training/Valid Loss")
         ax[1].set_ylabel("Loss")
@@ -77,14 +77,14 @@ def visualize(checkpoint_dir, args):
         ax[1].plot(range(1, len(train_loss_list)+1), train_loss_list)
         ax[1].plot(range(1, len(val_loss_list)+1), val_loss_list)
         ax[1].legend(['Train', 'Valid'])
-        ax[1].set_xlim(left=15)
-        ax[1].set_ylim(top=1.5)
+        #ax[1].set_xlim(left=15)
+        #ax[1].set_ylim(top=1.5)
         
         print(f"LR : {learning_rate}, Batch Size : {batch_size}, 현재 Epoch : {checkpoint['epoch']}")
         print(f"Train 정확도 : {train_acc_list[-1]}, Train Loss : {train_loss_list[-1]}")
         print(f"Val 정확도 : {val_acc_list[-1]}, Val Loss : {val_loss_list[-1]}")
         print(f"가장 높은 Val 정확도 : {max(val_acc_list)}")
-        plt.savefig(f'{args.model}_val_fig.png')
+        plt.savefig(f'{args.model}_{args.scheduler}_val_fig.png')
 
 def get_parameters(dataset, args):
     '''
