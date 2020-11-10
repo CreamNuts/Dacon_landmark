@@ -4,12 +4,13 @@ import multiprocessing
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-def save(model, epoch, check_epoch, optimizer, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list, args):
+def save(model, epoch, check_epoch, optimizer, lr_scheduler, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list, args):
     if args.checkpoint is None:
         torch.save({
                 'epoch': epoch+1,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': lr_scheduler.state_dict(),
                 'train_loss' : train_loss_list,
                 'val_loss': valid_loss_list, 
                 'train_accuracy': train_acc_list,
@@ -24,6 +25,7 @@ def save(model, epoch, check_epoch, optimizer, train_loss_list, valid_loss_list,
                 'epoch': epoch+1,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': lr_scheduler.state_dict(),
                 'train_loss' : train_loss_list,
                 'val_loss': valid_loss_list, 
                 'train_accuracy': train_acc_list,

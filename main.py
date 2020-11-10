@@ -25,7 +25,7 @@ parser.add_argument('--mode', '-m', default='val', choices=['train', 'val', 'tes
 parser.add_argument('--calculator', default='False', help='Cacluate Dataset Mean and Std')
 parser.add_argument('--checkpoint', '-c', default=None, help='Checkpoint Directory')
 parser.add_argument('--save', '-s', default='./Checkpoint.pt', help='Save Directory. if Checkpoint exists, Save Checkpoint in Checkpoint Dir')
-parser.add_argument('--model', default='b0', choices=['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'l2', 'vit_base', 'vit_base_hybrid', 'vit_large'])
+parser.add_argument('--model', default='b1', choices=['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'l2', 'vit_base', 'vit_base_hybrid', 'vit_large', 'skresnext50'])
 parser.add_argument('--gpu', default='0')
 parser.add_argument('--cutmix', default=True, help="If True, Use Cutmix Aug in Training")
 parser.add_argument('--scheduler', default='StepLR', choices=['StepLR', 'Cos'])
@@ -151,8 +151,17 @@ if __name__ == '__main__':
         model = timm.create_model('vit_base_resnet26d_224', pretrained=True, num_classes=NUM_CLASSES)
     elif args.model == 'vit_large':
         model = timm.create_model('vit_large_patch16_224', pretrained=True, num_classes=NUM_CLASSES)
+    elif args.model == 'skresnext50':
+        model = timm.create_model('skresnext50_32x4d', pretrained=True, num_classes=NUM_CLASSES)
     else:
         model = EfficientNet.from_pretrained(f"efficientnet-{args.model}", num_classes=NUM_CLASSES)        
+    
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+
+    if args.scheduler == 'StepLR':
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=LR_STEP, gamma=LR_FACTOR)
+    elif args.scheduler == 'Cos':
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=3)
     
     if args.checkpoint is None:   
         check_epoch = 0
@@ -164,21 +173,20 @@ if __name__ == '__main__':
         checkpoint = torch.load(args.checkpoint)
         check_epoch = checkpoint['epoch']
         model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        lr_scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
         train_acc_list = checkpoint['train_accuracy']
         valid_acc_list = checkpoint['val_accuracy']
         train_loss_list = checkpoint['train_loss']
         valid_loss_list = checkpoint['val_loss']
         
     model.to(device)
+
     if args.cutmix is True:
         criterion = CutMixCrossEntropyLoss(True)
     else:
         criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-    if args.scheduler == 'StepLR':
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=LR_STEP, gamma=LR_FACTOR)
-    elif args.scheduler == 'Cos':
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=3)
+    
     if args.mode == 'train':
         trainset = Dacon(dir=DIR, mode=args.mode, transform=transforms_train)
         if args.cutmix is True:
@@ -190,7 +198,7 @@ if __name__ == '__main__':
                 lr_scheduler.step()
                 train_acc_list.append(train_acc/len(trainloader))
                 train_loss_list.append(train_loss.detach().cpu().numpy())
-                save(model, epoch, check_epoch, optimizer, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list, args)
+                save(model, epoch, check_epoch, optimizer, lr_scheduler, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list, args)
         if args.checkpoint is None:
             visualize(args.save, args)
         else:
@@ -216,7 +224,7 @@ if __name__ == '__main__':
                 valid_acc_list.append(valid_acc/len(validloader))
                 valid_loss_list.append(valid_loss.detach().cpu().numpy())
                 if valid_loss_list[-1].item() == min(valid_loss_list).item():
-                    save(model, epoch, check_epoch, optimizer, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list, args)
+                    save(model, epoch, check_epoch, optimizer, lr_scheduler, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list, args)
         if args.checkpoint is None:
             visualize(args.save, args)
         else:
