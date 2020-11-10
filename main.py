@@ -1,4 +1,5 @@
 import os
+import json
 import random
 import argparse
 import multiprocessing
@@ -39,6 +40,8 @@ LR_STEP = 3
 LR_FACTOR = 0.5
 NUM_CLASSES = 1049
 NUM_WORKERS = multiprocessing.cpu_count() #24
+FLOODING_LEVEL = 0.01
+TRAINING_EPOCH = 10
 
 torch.manual_seed(777)
 torch.cuda.manual_seed(777)
@@ -65,6 +68,7 @@ TEST_PARAMETERS = {
     'std':[0.2757, 0.2769, 0.2763]
 }
 
+################################################
 calculation = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor()
