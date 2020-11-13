@@ -6,14 +6,12 @@ import argparse
 import numpy as np
 from tqdm import tqdm, trange
 import matplotlib.pyplot as plt
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, random_split
-
 from efficientnet_pytorch import EfficientNet
 from cutmix.cutmix import CutMix
 from cutmix.utils import CutMixCrossEntropyLoss
@@ -28,14 +26,17 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--mode', '-m', default='val', choices=['train', 'val', 'test'], help='Train : Use Total Dataset, Val : Use Hold-Out, Test : Make Submission')
 parser.add_argument('--ensemble', default=1)
 parser.add_argument('--save', '-s', default='./Checkpoint.pt', help='Save Directory. if Checkpoint exists, Save Checkpoint in Checkpoint Dir')
+parser.add_argument('--checkpoint', '-c', default=None, help='Checkpoint Directory')
 parser.add_argument('--cutmix', default=True, help="If True, Use Cutmix Aug in Training")
 parser.add_argument('--flooding', type=float, default=0.001)
 parser.add_argument('--batchsize', type=int, default=128)
 parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--epoch', type=int, default=10)
+parser.add_argument('--gpu', default='0')
 args = parser.parse_args()
 
 #########setting hyperparameters in here########
+os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('use:',device)
 print('mode:',args.mode)
@@ -72,7 +73,8 @@ class Ensemble_1(nn.Module):
         self.model_D = model_D
 
         #Create new classifier
-        self.classifier = nn.Linear(4196, NUM_CLASSES)
+        self.weight = nn.Parameter(torch.randn(4*1049), requires_grad=True) 
+        #torch.randn(4*1049, requires_grad=True, device=device)
 
     def forward(self, x):
         output_1 = self.model_A(x)
@@ -81,27 +83,31 @@ class Ensemble_1(nn.Module):
         output_4 = self.model_D(x)
 
         output = torch.cat((output_1, output_2, output_3, output_4), dim=1)
-        output.requires_grad = True
-        output = self.classifier(output)
+        output = output * self.weight
+        output = output.view(-1, 4, 1049)
+        output = torch.sum(output, dim=1)
         return output
 
 class Ensemble_2(nn.Module):
     '''
     이건 그냥 아웃풋 더하기
     '''
-    def __init__(self, model_A, model_B, model_C, model_D, NUM_CLASSES):
+    #def __init__(self, model_A, model_B, model_C, model_D, model_E, NUM_CLASSES):
+    def __init__(self, model_A, model_B, model_C, NUM_CLASSES):
         super(Ensemble_2, self).__init__()
         self.model_A = model_A
         self.model_B = model_B
         self.model_C = model_C
-        self.model_D = model_D
+        #self.model_D = model_D
+        #self.model_E = model_E
 
     def forward(self, x):
-        output_1 = self.model_A(x)
-        output_2 = self.model_B(x)
-        output_3 = self.model_C(x)
-        output_4 = self.model_D(x)
-        output = output_1 + output_2 + output_3 +output_4
+        output_0 = self.model_A(x)
+        output_1 = self.model_B(x)
+        output_2 = self.model_C(x)
+       #output_3 = self.model_D(x)
+       #output_4 = self.model_E(x)
+        output = output_0 + output_1 + output_2 #+ output_3 +output_4
 
         return output
 
@@ -161,12 +167,11 @@ def save(model, epoch, check_epoch, optimizer, train_loss_list, valid_loss_list,
                 'epoch': epoch+1,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'scheduler_state_dict': lr_scheduler.state_dict(),
                 'train_loss' : train_loss_list,
                 'val_loss': valid_loss_list, 
                 'train_accuracy': train_acc_list,
                 'val_accuracy' : valid_acc_list,
-                #'learning_rate' : get_learing_rate(optimizer),
+                'learning_rate' : args.lr,
                 'batch_size' : args.batchsize,
                 'flooding_level' : args.flooding
             }, args.save)
@@ -176,12 +181,11 @@ def save(model, epoch, check_epoch, optimizer, train_loss_list, valid_loss_list,
                 'epoch': epoch+1,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'scheduler_state_dict': lr_scheduler.state_dict(),
                 'train_loss' : train_loss_list,
                 'val_loss': valid_loss_list, 
                 'train_accuracy': train_acc_list,
                 'val_accuracy' : valid_acc_list,
-                #'learning_rate' : get_learing_rate(optimizer),
+                'learning_rate' : args.lr,
                 'batch_size' : args.batchsize,
                 'flooding_level' : args.flooding
             }, args.checkpoint)
@@ -239,12 +243,13 @@ def visualize(checkpoint_dir, args):
         print(f"가장 높은 Val 정확도 : {max(val_acc_list)}")
         plt.savefig(f'{args.model}_{args.scheduler}_val_fig.png')
 
-
+path0 = os.getcwd()+'/b0.pt'
 path1 = os.getcwd()+'/b1_cos.pt'
 path2 = os.getcwd()+'/b5.pt'
-path3 = os.getcwd()+'/vit_base_val.pt'
+path3 = os.getcwd()+'/vit.pt'
 path4 = os.getcwd()+'/resnext.pt'
 
+model_0 = EfficientNet.from_name("efficientnet-b0", num_classes=NUM_CLASSES)
 model_1 = EfficientNet.from_name("efficientnet-b1", num_classes=NUM_CLASSES)        
 model_2 = EfficientNet.from_name("efficientnet-b5", num_classes=NUM_CLASSES) 
 model_3 = timm.create_model('vit_base_patch16_224', pretrained=False, num_classes=NUM_CLASSES)     
@@ -252,16 +257,17 @@ model_4 = timm.create_model('skresnext50_32x4d', pretrained=False, num_classes=N
 
 print('load checkpoint')
 t1 = time.time()
+model_0 = ck_load(path0, model_0)
 model_1 = ck_load(path1, model_1)
 model_2 = ck_load(path2, model_2)
 model_3 = ck_load(path3, model_3)
 model_4 = ck_load(path4, model_4)
-print(f'time:{time.time()-t1:.3f}')
 
 if args.ensemble == '1':
-    model = Ensemble_1(model_1, model_2, model_3, model_4, NUM_CLASSES)
+    model = Ensemble_1(model_0, model_1, model_2, model_3, NUM_CLASSES)
 else:
-    model = Ensemble_2(model_1, model_2, model_3, model_4, NUM_CLASSES)
+    #model = Ensemble_2(model_0, model_1, model_2, model_3, model_4, NUM_CLASSES)
+    model = Ensemble_2(model_1, model_2, model_4, NUM_CLASSES) #Val acc 높은 3가지
 
 model.to(device)
 
