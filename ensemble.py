@@ -71,7 +71,6 @@ class Ensemble_1(nn.Module):
         self.model_C = model_C
         self.model_D = model_D
 
-
         #Create new classifier
         self.classifier = nn.Linear(4196, NUM_CLASSES)
 
@@ -82,8 +81,9 @@ class Ensemble_1(nn.Module):
         output_4 = self.model_D(x)
 
         output = torch.cat((output_1, output_2, output_3, output_4), dim=1)
-        #import pdb;pdb.set_trace()
-        return self.classifier(output)
+        output.requires_grad = True
+        output = self.classifier(output)
+        return output
 
 class Ensemble_2(nn.Module):
     '''
@@ -155,7 +155,7 @@ def submission(test_loader, model):
     submission.conf = torch.cat(conf).numpy()
     submission.to_csv(os.path.join(os.getcwd(), 'ensemble.csv'), index=False)
 
-def save(model, epoch, check_epoch, optimizer, lr_scheduler, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list, args):
+def save(model, epoch, check_epoch, optimizer, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list, args):
     if args.checkpoint is None:
         torch.save({
                 'epoch': epoch+1,
@@ -258,12 +258,18 @@ model_3 = ck_load(path3, model_3)
 model_4 = ck_load(path4, model_4)
 print(f'time:{time.time()-t1:.3f}')
 
-if args.ensemble == 1:
+if args.ensemble == '1':
     model = Ensemble_1(model_1, model_2, model_3, model_4, NUM_CLASSES)
 else:
     model = Ensemble_2(model_1, model_2, model_3, model_4, NUM_CLASSES)
+
 model.to(device)
-criterion = CutMixCrossEntropyLoss(True)
+
+if args.cutmix is True:
+    criterion = CutMixCrossEntropyLoss(True)
+else:
+    criterion = nn.CrossEntropyLoss()
+
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
 check_epoch = 0
@@ -285,7 +291,7 @@ if args.mode == 'train':
     trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, num_workers=NUM_WORKERS)
     with trange(10, initial=check_epoch, desc='Loss : 0', leave=True) as pbar:
         for epoch in pbar:
-            train_acc, train_loss = train(trainloader, model, criterion, optimizer, lr_scheduler)
+            train_acc, train_loss = train(trainloader, model, criterion, optimizer)
             #lr_scheduler.step()
             train_acc_list.append(train_acc/len(trainloader))
             train_loss_list.append(train_loss.detach().cpu().numpy())
@@ -321,9 +327,9 @@ elif args.mode == 'val':
     else:
         visualize(args.checkpoint, args)
 
-'''
-testset = Dacon(dir=DIR, mode='test', transform=transforms_train)
-testloader = DataLoader(testset, batch_size=64, shuffle=False, num_workers=NUM_WORKERS)
-submission(testloader, ensemble)
-'''
+else:
+    testset = Dacon(dir=DIR, mode='test', transform=transforms_train)
+    testloader = DataLoader(testset, batch_size=64, shuffle=False, num_workers=NUM_WORKERS)
+    submission(testloader, model)
+
 
