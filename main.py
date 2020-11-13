@@ -39,7 +39,7 @@ DIR = os.path.join(os.getcwd(),'..', 'data') + '/'
 LR_STEP = 3
 LR_FACTOR = 0.5
 NUM_CLASSES = 1049
-NUM_WORKERS = multiprocessing.cpu_count() #24
+NUM_WORKERS = 4 #multiprocessing.cpu_count() #24
 FLOODING_LEVEL = 0.01
 TRAINING_EPOCH = 10
 
@@ -74,7 +74,7 @@ calculation = transforms.Compose([
     transforms.ToTensor()
 ])
 
-def train(train_loader, model, criterion, optimizer, lr_scheduler):
+def train(train_loader, model, criterion, optimizer):
     model.train()
     acc = 0
     for images, labels in train_loader:
@@ -194,7 +194,7 @@ if __name__ == '__main__':
         trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, num_workers=NUM_WORKERS)
         with trange(args.epoch, initial=check_epoch, desc='Loss : 0', leave=True) as pbar:
             for epoch in pbar:
-                train_acc, train_loss = train(trainloader, model, criterion, optimizer, lr_scheduler)
+                train_acc, train_loss = train(trainloader, model, criterion, optimizer)
                 lr_scheduler.step()
                 train_acc_list.append(train_acc/len(trainloader))
                 train_loss_list.append(train_loss.detach().cpu().numpy())
@@ -215,7 +215,7 @@ if __name__ == '__main__':
         validloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, num_workers=NUM_WORKERS)
         with trange(args.epoch, initial=check_epoch, desc='Loss : 0', leave=True) as pbar:
             for epoch in pbar:
-                train_acc, train_loss = train(trainloader, model, criterion, optimizer, lr_scheduler)
+                train_acc, train_loss = train(trainloader, model, criterion, optimizer)
                 lr_scheduler.step()
                 train_acc_list.append(train_acc/len(trainloader))
                 train_loss_list.append(train_loss.detach().cpu().numpy())

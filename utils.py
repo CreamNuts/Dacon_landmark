@@ -4,6 +4,8 @@ import multiprocessing
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+NUM_WORKERS = 4 #multiprocessing.cpu_count()
+
 def save(model, epoch, check_epoch, optimizer, lr_scheduler, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list, args):
     if args.checkpoint is None:
         torch.save({
@@ -96,7 +98,6 @@ def get_parameters(dataset, args):
     'mean':[0, 0, 0],
     'std': [0, 0, 0]
     }
-    NUM_WORKERS = multiprocessing.cpu_count()
     dataloader = DataLoader(dataset, batch_size = args.batchsize, num_workers=NUM_WORKERS)
     count = 0
     if args.mode == 'train':
