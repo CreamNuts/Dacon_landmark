@@ -26,9 +26,13 @@ main에서 돌리지 말고
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--mode', '-m', default='val', choices=['train', 'val', 'test'], help='Train : Use Total Dataset, Val : Use Hold-Out, Test : Make Submission')
+parser.add_argument('--ensemble', default=1)
 parser.add_argument('--save', '-s', default='./Checkpoint.pt', help='Save Directory. if Checkpoint exists, Save Checkpoint in Checkpoint Dir')
 parser.add_argument('--cutmix', default=True, help="If True, Use Cutmix Aug in Training")
-parser.add_argument('--flooding', type=float, default=0.01)
+parser.add_argument('--flooding', type=float, default=0.001)
+parser.add_argument('--batchsize', type=int, default=128)
+parser.add_argument('--lr', type=float, default=1e-3)
+parser.add_argument('--epoch', type=int, default=10)
 args = parser.parse_args()
 
 #########setting hyperparameters in here########
@@ -254,11 +258,13 @@ model_3 = ck_load(path3, model_3)
 model_4 = ck_load(path4, model_4)
 print(f'time:{time.time()-t1:.3f}')
 
-model = Ensemble_1(model_1, model_2, model_3, model_4, NUM_CLASSES)
-#ensemble = Ensemble_2(model_1, model_2, model_3, model_4, NUM_CLASSES)
+if args.ensemble == 1:
+    model = Ensemble_1(model_1, model_2, model_3, model_4, NUM_CLASSES)
+else:
+    model = Ensemble_2(model_1, model_2, model_3, model_4, NUM_CLASSES)
 model.to(device)
 criterion = CutMixCrossEntropyLoss(True)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
 check_epoch = 0
 train_acc_list = []
@@ -276,7 +282,7 @@ if args.mode == 'train':
     trainset = Dacon(dir=DIR, mode=args.mode, transform=transforms_train)
     if args.cutmix is True:
         trainset = CutMix(trainset, num_class=NUM_CLASSES, num_mix=2, prob=0.5, beta=1)
-    trainloader = DataLoader(trainset, batch_size=64, shuffle=True, num_workers=NUM_WORKERS)
+    trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, num_workers=NUM_WORKERS)
     with trange(10, initial=check_epoch, desc='Loss : 0', leave=True) as pbar:
         for epoch in pbar:
             train_acc, train_loss = train(trainloader, model, criterion, optimizer, lr_scheduler)
@@ -296,8 +302,8 @@ elif args.mode == 'val':
     trainset, validset = random_split(dacon, [num_train, num_valid])
     if args.cutmix is True:
         trainset = CutMix(trainset, num_class=NUM_CLASSES, num_mix=2, prob=0.5, beta=1)
-    trainloader = DataLoader(trainset, batch_size=16, shuffle=True, num_workers=NUM_WORKERS)
-    validloader = DataLoader(validset, batch_size=16, shuffle=True, num_workers=NUM_WORKERS)
+    trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, num_workers=NUM_WORKERS)
+    validloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, num_workers=NUM_WORKERS)
     with trange(10, initial=check_epoch, desc='Loss : 0', leave=True) as pbar:
         for epoch in pbar:
             train_acc, train_loss = train(trainloader, model, criterion, optimizer)
