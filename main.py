@@ -106,11 +106,12 @@ def submission(test_loader, model):
     landmark_id = []
     conf = []
     for images in tqdm(testloader):
-        pred = model(images.to(device))
-        pred = nn.Softmax(dim=1)(pred)
-        pred = pred.detach().cpu()
-        landmark_id.append(torch.argmax(pred, dim=1))
-        conf.append(torch.max(pred, dim=1)[0])
+        with torch.no_grad():
+            pred = model(images.to(device))
+            pred = nn.Softmax(dim=1)(pred)
+            pred = pred.detach().cpu()
+            landmark_id.append(torch.argmax(pred, dim=1))
+            conf.append(torch.max(pred, dim=1)[0])
     submission = test_loader.dataset.submission
     submission.landmark_id = torch.cat(landmark_id).numpy()
     submission.conf = torch.cat(conf).numpy()
