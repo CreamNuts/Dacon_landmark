@@ -96,7 +96,8 @@ class Ensemble_1(nn.Module):
         self.model_A = model_A
         self.model_B = model_B
         self.model_C = model_C
-        self.model_D = model_D
+        #self.model_D = model_D
+        #self.model_E = model_E
 
         #Create new classifier
         self.weight = nn.Parameter(torch.randn((4, 1049), requires_grad=True)) 
