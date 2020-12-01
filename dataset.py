@@ -1,13 +1,7 @@
-import os
-import random
-import multiprocessing
-import numpy as np
+import os, random
 import pandas as pd
 from PIL import Image
 from pathlib import Path
-
-import torch
-import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 
 class Dacon(Dataset):

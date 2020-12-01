@@ -1,20 +1,11 @@
-import os
-import json
-import random
-import argparse
-import multiprocessing
+import os, random, argparse, torch
 import numpy as np
-import torch
 import torch.nn as nn 
-import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, random_split
-from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm, trange
-from pathlib import Path
 from utils import *
 from dataset import Dacon
-
 from cutmix.cutmix import CutMix
 from cutmix.utils import CutMixCrossEntropyLoss
 

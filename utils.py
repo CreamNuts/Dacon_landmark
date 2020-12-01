@@ -1,12 +1,9 @@
-import os
-import torch
+import os, torch, timm
 import torch.nn as nn
 import matplotlib.pyplot as plt
-import multiprocessing
-import timm
-from efficientnet_pytorch import EfficientNet
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+#import multiprocessing
 
 NUM_WORKERS = 4 #multiprocessing.cpu_count()
 
