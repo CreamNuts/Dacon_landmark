@@ -113,20 +113,20 @@ if __name__ == '__main__':
                 train_acc_list.append(train_acc/len(trainloader))
                 train_loss_list.append(train_loss.detach().cpu().numpy())
                 save(model, epoch, check_epoch, optimizer, lr_scheduler, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list, args)
-        if args.checkpoint is None:
-            visualize(args.save, args)
-        else:
-            visualize(args.checkpoint, args)
+                if args.checkpoint is None:
+                    visualize(args.save, args)
+                else:
+                    visualize(args.checkpoint, args)
 
     elif args.mode == 'val':
         dacon = Dacon(dir=DIR, mode=args.mode, transform=transforms_train)
-        num_train = int(len(dacon) * 0.8)
+        num_train = int(len(dacon) * 0.0001)
         num_valid = len(dacon) - num_train
         trainset, validset = random_split(dacon, [num_train, num_valid])
         if args.cutmix is True:
             trainset = CutMix(trainset, num_class=args.NUM_CLASSES, num_mix=2, prob=0.5, beta=1)
         trainloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, num_workers=NUM_WORKERS)
-        validloader = DataLoader(validset, batch_size=args.batchsize, shuffle=True, num_workers=NUM_WORKERS)
+        validloader = DataLoader(trainset, batch_size=args.batchsize, shuffle=True, num_workers=NUM_WORKERS)
         with trange(args.epoch, initial=check_epoch, desc='Loss : 0', leave=True) as pbar:
             for epoch in pbar:
                 train_acc, train_loss = train(trainloader, model, criterion, optimizer, device, args)
@@ -140,10 +140,10 @@ if __name__ == '__main__':
                 valid_loss_list.append(valid_loss.detach().cpu().numpy())
                 if valid_loss_list[-1].item() == min(valid_loss_list).item():
                     save(model, epoch, check_epoch, optimizer, lr_scheduler, train_loss_list, valid_loss_list, train_acc_list, valid_acc_list, args)
-        if args.checkpoint is None:
-            visualize(args.save, args)
-        else:
-            visualize(args.checkpoint, args)
+                if args.checkpoint is None:
+                    visualize(args.save, args)
+                else:
+                    visualize(args.checkpoint, args)
 
     elif args.mode == 'test':
         testset = Dacon(dir=DIR, mode=args.mode, transform=transforms_train)

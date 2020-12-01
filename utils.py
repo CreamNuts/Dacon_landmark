@@ -1,4 +1,5 @@
 import os, torch, timm
+import numpy as np
 import torch.nn as nn
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
@@ -53,14 +54,14 @@ def visualize(checkpoint_dir, args):
         ax[0].set_xlabel("Epoch")
         ax[0].plot(range(1, len(train_acc_list)+1), train_acc_list)
         ax[0].legend(['Train'])
+        ax[0].annotate(f'{torch.max(torch.tensor(train_acc_list)):.4f}', xy=(torch.argmax(torch.tensor(train_acc_list))+1, torch.max(torch.tensor(train_acc_list))), xytext=(len(train_acc_list)/2+1, torch.mean(torch.tensor(train_acc_list))), size=30, arrowprops=dict(color='#1f77b4', shrink=0.05))
 
         ax[1].set_title("Training Loss")
         ax[1].set_ylabel("Loss")
         ax[1].set_xlabel("Epoch")
         ax[1].plot(range(1, len(train_loss_list)+1), train_loss_list)
         ax[1].legend(['Train'])
-        print(f"LR : {learning_rate}, Batch Size : {batch_size}, 현재 Epoch : {checkpoint['epoch']}")
-        print(f"Train 정확도 : {train_acc_list[-1]}, Train Loss : {train_loss_list[-1]}")
+        ax[1].annotate(f'{min(train_loss_list):.4f}', xy=(np.argmin(train_loss_list)+1, min(train_loss_list)), xytext=(len(train_loss_list)/2+1, sum(train_loss_list)/len(train_loss_list)), size=30, arrowprops=dict(color='#1f77b4', shrink=0.05))
         plt.savefig(f'{args.model}_{args.scheduler}_train_fig.png')
 
     elif args.mode == 'val':
@@ -71,6 +72,8 @@ def visualize(checkpoint_dir, args):
         ax[0].plot(range(1, len(train_acc_list)+1), train_acc_list)
         ax[0].plot(range(1, len(val_acc_list)+1), val_acc_list)
         ax[0].legend(['Train', 'Valid'])
+        ax[0].annotate(f'{torch.max(torch.tensor(train_acc_list)):.4f}', xy=(torch.argmax(torch.tensor(train_acc_list))+1, torch.max(torch.tensor(train_acc_list))), xytext=(len(train_acc_list)/2+1, torch.mean(torch.tensor(train_acc_list))), size=30, arrowprops=dict(color='#1f77b4', shrink=0.05))
+        ax[0].annotate(f'{torch.max(torch.tensor(val_acc_list)):.4f}', xy=(torch.argmax(torch.tensor(val_acc_list))+1, torch.max(torch.tensor(val_acc_list))), xytext=(len(val_acc_list)/2+1, torch.mean(torch.tensor(val_acc_list))), size=30, arrowprops=dict(color='#ff7f0e', shrink=0.05))
 
         ax[1].set_title("Training/Valid Loss")
         ax[1].set_ylabel("Loss")
@@ -78,11 +81,8 @@ def visualize(checkpoint_dir, args):
         ax[1].plot(range(1, len(train_loss_list)+1), train_loss_list)
         ax[1].plot(range(1, len(val_loss_list)+1), val_loss_list)
         ax[1].legend(['Train', 'Valid'])
-        
-        print(f"LR : {learning_rate}, Batch Size : {batch_size}, 현재 Epoch : {checkpoint['epoch']}")
-        print(f"Train 정확도 : {train_acc_list[-1]}, Train Loss : {train_loss_list[-1]}")
-        print(f"Val 정확도 : {val_acc_list[-1]}, Val Loss : {val_loss_list[-1]}")
-        print(f"가장 높은 Val 정확도 : {max(val_acc_list)}")
+        ax[1].annotate(f'{min(train_loss_list):.4f}', xy=(np.argmin(train_loss_list)+1, min(train_loss_list)), xytext=(len(train_loss_list)/2+1, sum(train_loss_list)/len(train_loss_list)), size=30, arrowprops=dict(color='#1f77b4', shrink=0.05))
+        ax[1].annotate(f'{min(val_loss_list):.4f}', xy=(np.argmin(val_loss_list)+1, min(val_loss_list)), xytext=(len(val_loss_list)/2+1, sum(val_loss_list)/len(val_loss_list)), size=30, arrowprops=dict(color='#ff7f0e', shrink=0.05))
         plt.savefig(f'{args.model}_{args.scheduler}_val_fig.png')
 
 def get_parameters(dataset, args):
