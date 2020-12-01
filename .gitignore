@@ -1,5 +1,6 @@
 *.png
 *.pt
 *.csv
+*.pyc
 .vscode/settings.json
 Landmark.code-workspace
