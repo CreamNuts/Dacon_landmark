@@ -16,7 +16,7 @@ parser.add_argument('--model', required=True, choices=['sum', 'weighted_sum', 'b
 parser.add_argument('--calculator', metavar=False, default=False, help='Caculate mean and std of dataset')
 parser.add_argument('--checkpoint', metavar='None', default=None, help='Checkpoint directory')
 parser.add_argument('--save', metavar='Checkpoint.pt', default='./Checkpoint.pt', help='Save directory. If checkpoint exists, save checkpoint in checkpoint dir')
-parser.add_argument('--gpu', metavar=0, default='0', help='GPU number to use')
+parser.add_argument('--gpu', metavar=0, default=0, help='GPU number to use')
 parser.add_argument('--cutmix', default=True, metavar='True', help="If True, use Cutmix aug in training")
 parser.add_argument('--scheduler', default='Cos', choices=['StepLR', 'Cos'], help='Cos: cosine annealing')
 parser.add_argument('--batchsize', type=int, metavar=128, default=128)
@@ -38,8 +38,11 @@ torch.backends.cudnn.benchmark = False
 np.random.seed(777)
 random.seed(777)
 
-os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+if args.gpu == None:
+    device = torch.device('cpu')
+else:
+    device = torch.device(f'cuda:{args.gpu}' if torch.cuda.is_available() else 'cpu')
+    torch.cuda.set_device(device)
 print('use: ',device)
 
 # Pre-calculated value
